@@ -1,5 +1,10 @@
 import pygame as pg
-from pytmx.util_pygame import load_pygame
+
+try:
+    from pytmx.util_pygame import load_pygame
+except:
+    print('pytmx not installed')
+    
 import traceback
 from math import sin, cos, pi
 
