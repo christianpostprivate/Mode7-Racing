@@ -1,6 +1,6 @@
 # Fake Mode7 demo for pygame
 
-modules needed: pygame, pytmx 
+modules needed: pygame, pytmx (you can find pytmx here: https://pypi.org/project/PyTMX/)
 
 Control with WASD
 
