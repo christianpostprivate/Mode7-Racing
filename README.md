@@ -9,6 +9,9 @@ Control the kart with WASD
 ![Screenshot](https://i.imgur.com/xZhEtu7.png "Screenshot1")
 
 
-credits for the Mode7 algorithm go to:
+Credits: 
+Mode7 algorithm:
 https://github.com/OneLoneCoder/videos/blob/master/OneLoneCoder_Pseudo3DPlanesMode7.cpp
 
+Tileset: 
+https://kenney.nl/
