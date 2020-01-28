@@ -1,10 +1,8 @@
 # Fake Mode7 demo for pygame
 
 modules needed: 
-
-pygame (pygame.org)
-
-pytmx (https://pypi.org/project/PyTMX/)
+*pygame (pygame.org)
+*pytmx (https://pypi.org/project/PyTMX/)
 
 Control the kart with WASD
 
