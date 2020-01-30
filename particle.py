@@ -1,27 +1,23 @@
 import pygame as pg
-import traceback
-from random import uniform, choice, randint
+from random import choice, randint
 
 vec = pg.math.Vector2
-vec3 = pg.math.Vector3
-Color = pg.Color
-
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
 
 
 
 def lerp_colors(color, start, end, dist):
+    # linear interpolation between two colors
     color.r, color.g, color.b = list(map(lambda x: int((x[0] * (1 - dist)) +
                                     (x[1] * dist)), zip(start[:3], end[:3])))
+
+
 
 class Particle(pg.sprite.Sprite):
     def __init__(self, game, pos, images=None, colors=[], vel=vec(),
                  random_angle=0, vanish_speed=4, start_size=1, end_size=1,
                  lifespan=4):
-        super().__init__()
+        super().__init__(game.all_sprites)
         self.game = game
-        self.game.all_sprites.add(self)
         
         if images:
             # if initialized with a list of images, choose one at random
@@ -55,7 +51,6 @@ class Particle(pg.sprite.Sprite):
         self.pos = vec(pos)
         self.rect.center = self.pos
         # set random velocity vector
-        #self.vel = vec(uniform(-0.6, 0.6), uniform(-3, -2))
         self.vel = vel.rotate(randint(-random_angle, random_angle))
         
         self.forces = [self.vel] # additional forces to impact the vel
@@ -67,7 +62,6 @@ class Particle(pg.sprite.Sprite):
     
     def update(self, dt):
         # add velocity to position
-        #self.pos += self.vel
         for f in self.forces:
             self.pos += f
         # update rect

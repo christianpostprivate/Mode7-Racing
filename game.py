@@ -2,11 +2,12 @@ import pygame as pg
 
 try:
     from pytmx.util_pygame import load_pygame
-except:
-    print('pytmx not installed')
+except ModuleNotFoundError:
+    print('Warning: Pytmx is not installed')
     
 import traceback
 from math import sin, cos, pi
+from os import path
 
 from particle import Particle
 
@@ -14,13 +15,13 @@ from particle import Particle
 vec = pg.math.Vector2
 
 
-def load_map(file):
+def load_map(folder, name):
     """
     load a Tiled map in .tmx format and return a background image Surface, 
     map objects as a TiledObjectGroup and layer_data as a list of 2D arrays
     with tile indices
     """
-    tiled_map = load_pygame('assets/{}.tmx'.format(file))
+    tiled_map = load_pygame(path.join(folder, f'{name}.tmx'))
     # create empty surface based on tile map dimensions
     bg_image = pg.Surface((tiled_map.width * tiled_map.tilewidth,
                           tiled_map.height * tiled_map.tileheight))
@@ -44,23 +45,34 @@ class Game:
         self.screen_rect = self.screen.get_rect()
         self.fake_screen = pg.Surface((200, 150))
         self.fake_screen_rect = self.fake_screen.get_rect()
-        self.fps = 30       
+        self.background = pg.Surface(self.fake_screen.get_size())
+        self.background.fill(pg.Color('skyblue'))
+        self.fps = 30
         self.all_sprites = pg.sprite.Group()
         
-        player_image_strip = pg.image.load('assets/kart.png').convert_alpha()
-        self.player_images = [player_image_strip.subsurface((i * 30, 0, 30, 32)) for i in range(11)]
+        # specify the directories for asset loading
+        base_dir = path.dirname(__file__)
+        assets_folder = path.join(base_dir, 'assets')
         
-        self.cloud_image = pg.image.load('assets/cloud.png').convert_alpha()
-        self.traffic_light_images = pg.image.load('assets/lights.png').convert_alpha()
-        self.bush_image = pg.image.load('assets/bush.png').convert_alpha()
+        player_image_strip = pg.image.load(
+                path.join(assets_folder, 'kart.png')).convert_alpha()
+        self.player_images = [player_image_strip.subsurface((i * 30, 0, 30, 32)) 
+                              for i in range(11)]
+        
+        self.cloud_image = pg.image.load(
+                path.join(assets_folder, 'cloud.png')).convert_alpha()
+        self.traffic_light_images = pg.image.load(
+                path.join(assets_folder, 'lights.png')).convert_alpha()
+        self.bush_image = pg.image.load(
+                path.join(assets_folder, 'bush.png')).convert_alpha()  # TODO: unused
         
         self.player = Player(self)
         self.traffic_light = TrafficLight(self, (100, 60))
         
         try:
-            self.map_img, _ = load_map('track2')
+            self.map_img, _ = load_map(folder=assets_folder, name='track2')
             self.map = Mode7(self, self.map_img)
-        except:
+        except Exception:
             traceback.print_exc()
             self.map = Mode7(self)
             
@@ -74,8 +86,7 @@ class Game:
 
     
     def update(self, dt):
-        self.fake_screen = pg.Surface((200, 150))
-        self.fake_screen.fill(pg.Color('skyblue'))
+        self.fake_screen.blit(self.background, (0, 0))
         self.map.update(dt)
         self.all_sprites.update(dt)
         
@@ -83,9 +94,7 @@ class Game:
             self.started = True
         
 
-    
     def draw(self):
-        #self.all_sprites.draw(self.fake_screen)
         for s in self.all_sprites:
             s.draw(self.fake_screen)
         
@@ -102,14 +111,12 @@ class Game:
 #         pg.draw.line(self.fake_screen, pg.Color('red'), start2, end2)
 #         
 #         print(end1.angle_to(end2))
-# =============================================================================
-# =============================================================================
 #         for s in self.all_sprites:
 #             pg.draw.rect(self.fake_screen, pg.Color('red'), s.rect, 1)
 # =============================================================================
         
-        self.fake_screen = pg.transform.scale(self.fake_screen, self.screen_rect.size)
-        self.screen.blit(self.fake_screen, (0,0))
+        transformed_screen = pg.transform.scale(self.fake_screen, self.screen_rect.size)
+        self.screen.blit(transformed_screen, (0,0))
         pg.display.update()
         
         
@@ -129,11 +136,11 @@ class Game:
 class Mode7():
     def __init__(self, game, sprite=None, size=(1024, 1024)):
         self.game = game
-        # if no sprite is provided, draw an image with horizontal and vertical lines
         if sprite:
             self.image = sprite
             self.size = sprite.get_size()
         else:
+            # if no sprite is provided, draw an image with horizontal and vertical lines
             self.image = pg.Surface(size)
             self.image.fill(pg.Color('black'))
             
@@ -211,6 +218,7 @@ class Mode7():
     
         keys = pg.key.get_pressed()
         # control the rendering parameters
+        # this is for debugging only!
         if keys[pg.K_LEFT]:
             self.near -= 0.05 * dt
         elif keys[pg.K_RIGHT]:
@@ -226,9 +234,8 @@ class Mode7():
         elif keys[pg.K_e]:
             self.fov_half += 0.2 * dt
             
-    
-            
-            
+
+
 # ENUMS correspond to kart image index
 LEFT = [5, 4, 3, 2, 1, 0]
 RIGHT = [5, 6, 7, 8, 9, 10]
@@ -252,7 +259,7 @@ class Player(pg.sprite.Sprite):
         self.steer_time = 0 # seconds the player is pressing a direction
         self.lastdir = 'LEFT'
         self.moving = 1 # 1 forward, -1 backwards
-        self.timer_dust = 0
+        self.dust_timer = 0
         
     
     def update(self, dt):
@@ -262,8 +269,9 @@ class Player(pg.sprite.Sprite):
         
         if not self.game.started:
             if keys[pg.K_w]:
-                self.timer_dust += dt
-                if self.timer_dust >= 0.3:
+                self.dust_timer += dt
+                if self.dust_timer >= 0.3:
+                    # create two particles (left and right)
                     Particle(self.game, self.rect.bottomright, 
                                  images=[self.game.cloud_image],
                                  colors=[pg.Color('white')],
@@ -278,7 +286,7 @@ class Player(pg.sprite.Sprite):
                                  random_angle=20,
                                  vanish_speed=20,
                                  end_size=1.4)
-                    self.timer_dust = 0
+                    self.dust_timer = 0
             
         else:
             if self.moving == 1:
@@ -290,7 +298,7 @@ class Player(pg.sprite.Sprite):
             current_speed = self.vel.length()
             
             # steer
-            # cap the index at 4 (len of animation minus 2)
+            # cap the image index at 4 (len of animation minus 2)
             index = min(4, int(self.steer_time * steer_anim_speed))
             
             if keys[pg.K_a]:
@@ -358,8 +366,8 @@ class Player(pg.sprite.Sprite):
                 
             
             # create dust clouds
-            self.timer_dust += dt
-            if self.timer_dust >= 0.2:
+            self.dust_timer += dt
+            if self.dust_timer >= 0.2:
                 if self.lastdir == 'RIGHT':
                     v = vec(3, 0) * self.moving
                 elif self.lastdir == 'LEFT':
@@ -382,7 +390,7 @@ class Player(pg.sprite.Sprite):
                                  end_size=0.9)
                         p.add_force(vec(0, -2), 10)
                     
-                self.timer_dust = 0
+                self.dust_timer = 0
         
         
     def draw(self, screen):
@@ -422,6 +430,7 @@ class TrafficLight(pg.sprite.Sprite):
         
 
 class Bush(pg.sprite.Sprite):
+    # TODO: work in progress
     def __init__(self, game, map_pos):
         super().__init__(game.all_sprites)
         self.game = game
@@ -446,7 +455,6 @@ if __name__ == '__main__':
     try:
         g = Game()
         g.run()
-        #print(g.player.pos, g.player.angle, g.map.far)
-    except:
+    except Exception:
         traceback.print_exc()
         pg.quit()
