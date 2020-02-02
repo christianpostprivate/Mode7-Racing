@@ -4,7 +4,9 @@
 * pygame 1.9.6 (pygame.org)
 * pytmx 3.21.7 (https://pypi.org/project/PyTMX/)
 
-Control the kart with WASD
+## how to play:
+* execute "game.py" to start the game
+* Control the kart with WASD
 
 ![Screenshot](https://i.imgur.com/xZhEtu7.png "Screenshot1")
 
