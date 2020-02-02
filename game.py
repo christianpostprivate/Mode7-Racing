@@ -41,14 +41,15 @@ class Game:
     def __init__(self):
         pg.init()
         self.clock = pg.time.Clock()
-        self.screen = pg.display.set_mode((800, 600))
-        self.screen_rect = self.screen.get_rect()
-        self.fake_screen = pg.Surface((200, 150))
-        self.fake_screen_rect = self.fake_screen.get_rect()
-        self.background = pg.Surface(self.fake_screen.get_size())
+        self.display_screen = pg.display.set_mode((800, 600))
+        self.display_rect = self.display_screen.get_rect()
+        self.game_screen = pg.Surface((200, 150))
+        self.game_screen_rect = self.game_screen.get_rect()
+        self.background = pg.Surface(self.game_screen.get_size())
         self.background.fill(pg.Color('skyblue'))
         self.fps = 30
         self.all_sprites = pg.sprite.Group()
+        self.running = True
         
         # specify the directories for asset loading
         base_dir = path.dirname(__file__)
@@ -86,7 +87,7 @@ class Game:
 
     
     def update(self, dt):
-        self.fake_screen.blit(self.background, (0, 0))
+        self.game_screen.blit(self.background, (0, 0))
         self.map.update(dt)
         self.all_sprites.update(dt)
         
@@ -96,7 +97,7 @@ class Game:
 
     def draw(self):
         for s in self.all_sprites:
-            s.draw(self.fake_screen)
+            s.draw(self.game_screen)
         
 # =============================================================================
 #         #for debugging
@@ -115,8 +116,9 @@ class Game:
 #             pg.draw.rect(self.fake_screen, pg.Color('red'), s.rect, 1)
 # =============================================================================
         
-        transformed_screen = pg.transform.scale(self.fake_screen, self.screen_rect.size)
-        self.screen.blit(transformed_screen, (0,0))
+        transformed_screen = pg.transform.scale(self.game_screen,
+                                                self.display_rect.size)
+        self.display_screen.blit(transformed_screen, (0, 0))
         pg.display.update()
         
         
@@ -133,7 +135,7 @@ class Game:
         
         
         
-class Mode7():
+class Mode7:
     def __init__(self, game, sprite=None, size=(1024, 1024)):
         self.game = game
         if sprite:
@@ -147,10 +149,10 @@ class Mode7():
             tilesize = 32
             for x in range(0, size[0], tilesize):
                 pg.draw.line(self.image, pg.Color('darkturquoise'),
-                                 (x, 0), (x, size[1]), 4)
+                             (x, 0), (x, size[1]), 4)
             for y in range(0, size[1], tilesize):
                 pg.draw.line(self.image, pg.Color('blueviolet'),
-                                 (0, y), (size[0], y), 4)
+                             (0, y), (size[0], y), 4)
         self.rect = self.image.get_rect()
         
         # settings for the near and far plane
@@ -162,8 +164,8 @@ class Mode7():
     
     def update(self, dt):
         # references to the "fake" screen (the one that gets rendered onto the screen)
-        screen = self.game.fake_screen
-        screen_rect = self.game.fake_screen_rect
+        screen = self.game.game_screen
+        screen_rect = self.game.game_screen_rect
         
         player = self.game.player
         
@@ -187,7 +189,7 @@ class Mode7():
         # camera point
         for y in range(screen_rect.h):
             # take a sample point for depth linearly related to rows on the screen
-            sample_depth = y / (screen_rect.h) + 0.0000001 # this prevents div by 0 errors 
+            sample_depth = y / screen_rect.h + 0.0000001 # this prevents div by 0 errors
             # not sure how this is handled in the c++ code
             
             # Use sample point in non-linear (1/x) way to enable perspective
@@ -235,7 +237,6 @@ class Mode7():
             self.fov_half += 0.2 * dt
             
 
-
 # ENUMS correspond to kart image index
 LEFT = [5, 4, 3, 2, 1, 0]
 RIGHT = [5, 6, 7, 8, 9, 10]
@@ -273,19 +274,19 @@ class Player(pg.sprite.Sprite):
                 if self.dust_timer >= 0.3:
                     # create two particles (left and right)
                     Particle(self.game, self.rect.bottomright, 
-                                 images=[self.game.cloud_image],
-                                 colors=[pg.Color('white')],
-                                 vel=vec(1, 0), 
-                                 random_angle=20,
-                                 vanish_speed=20,
-                                 end_size=1.4)
+                             images=[self.game.cloud_image],
+                             colors=[pg.Color('white')],
+                             vel=vec(1, 0),
+                             random_angle=20,
+                             vanish_speed=20,
+                             end_size=1.4)
                     Particle(self.game, self.rect.bottomleft, 
-                                 images=[self.game.cloud_image],
-                                 colors=[pg.Color('white')],
-                                 vel=vec(-1, 0), 
-                                 random_angle=20,
-                                 vanish_speed=20,
-                                 end_size=1.4)
+                             images=[self.game.cloud_image],
+                             colors=[pg.Color('white')],
+                             vel=vec(-1, 0),
+                             random_angle=20,
+                             vanish_speed=20,
+                             end_size=1.4)
                     self.dust_timer = 0
             
         else:
@@ -375,19 +376,19 @@ class Player(pg.sprite.Sprite):
                 if self.steer_time >= 0.3 and current_speed > 0.04:
                     if self.moving == 1:
                         p = Particle(self.game, self.rect.midbottom, 
-                                 images=[self.game.cloud_image],
-                                 colors=[pg.Color('white')],
-                                 vel=v, random_angle=30,
-                                 vanish_speed=20,
-                                 end_size=1.4)
+                                     images=[self.game.cloud_image],
+                                     colors=[pg.Color('white')],
+                                     vel=v, random_angle=30,
+                                     vanish_speed=20,
+                                     end_size=1.4)
                         p.add_force(vec(0, 1), 10)
                     else:
                         p = Particle(self.game, self.rect.midbottom, 
-                                 images=[self.game.cloud_image],
-                                 colors=[pg.Color('white')],
-                                 vel=v, random_angle=30,
-                                 vanish_speed=20,
-                                 end_size=0.9)
+                                     images=[self.game.cloud_image],
+                                     colors=[pg.Color('white')],
+                                     vel=v, random_angle=30,
+                                     vanish_speed=20,
+                                     end_size=0.9)
                         p.add_force(vec(0, -2), 10)
                     
                 self.dust_timer = 0
@@ -441,16 +442,12 @@ class Bush(pg.sprite.Sprite):
         
         
     def update(self, dt):
-        # calculate screen position and size based on relativ position
+        # calculate screen position and size based on relative position
         # on game map to the player
         dist_vec = self.map_pos - self.game.player.pos
         distance = dist_vec.length()
-        
 
 
-
-
-        
 if __name__ == '__main__':
     try:
         g = Game()
