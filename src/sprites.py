@@ -167,6 +167,8 @@ class PathFollower(Kart):
         self.max_force = game.config["Gameplay.ai_max_force"] * self.max_speed 
         self.look_ahead_time = game.config["Gameplay.ai_look_ahead_time"]  # seconds
         self.steer_response_time = game.config["Gameplay.ai_steer_response_time"]
+        self.separation_distance = game.config["Gameplay.ai_separation_distance"]  # in kart widths
+        self.separation_weight = game.config["Gameplay.ai_separation_weight"]   # relative to path following
         self.target_ahead = game.config["Gameplay.ai_target_ahead"]      # px along the path
 
         self.map_pos = vec(start_pos)
@@ -218,6 +220,29 @@ class PathFollower(Kart):
         self.acc += steer
 
 
+    def separate(self):
+        # steer away from karts that are too close (Nature of Code separation)
+        min_distance = self.separation_distance * self.world_width
+        push_sum = vec()
+        count = 0
+        for other in self.game.billboards:
+            if other is self or not isinstance(other, Kart):
+                continue
+            offset = self.map_pos - other.map_pos
+            distance = offset.length()
+            if 0 < distance < min_distance:
+                push_sum += offset.normalize() / distance  # closer -> stronger
+                count += 1
+        if count == 0:
+            return
+        desired = push_sum / count
+        desired.scale_to_length(self.max_speed)
+        steer = (desired - self.vel) / self.steer_response_time
+        if steer.length() > self.max_force:
+            steer.scale_to_length(self.max_force)
+        self.acc += steer * self.separation_weight
+
+
     def accelerate(self):
         # throttle along the heading, steering alone doesn't speed up the kart
         if self.vel.length() < self.max_speed:
@@ -228,6 +253,7 @@ class PathFollower(Kart):
     def update(self, dt):
         if self.game.started:
             self.follow_path()
+            self.separate()
             self.accelerate()
             self.vel += self.acc * dt
             if self.vel.length() > self.max_speed:
