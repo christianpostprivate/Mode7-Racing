@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="8" nextobjectid="76">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="77">
  <tileset firstgid="1" source="racetrack_tiles_32.tsx"/>
  <layer id="1" name="ground" width="100" height="100">
   <data encoding="csv">
@@ -484,5 +484,10 @@
   <object id="73" name="bush" type="billboard" x="3056" y="2032" width="32" height="32"/>
   <object id="74" name="bush" type="billboard" x="3096" y="1432" width="32" height="32"/>
   <object id="75" name="bush" type="billboard" x="3096" y="1432" width="32" height="32"/>
+ </objectgroup>
+ <objectgroup id="8" name="path">
+  <object id="76" type="path" x="2856" y="880">
+   <polygon points="0,0 0,-304 -32,-408 -128,-456 -288,-432 -496,-352 -648,-344 -736,-432 -712,-624 -768,-720 -960,-728 -1048,-592 -1112,-344 -1240,-104 -1464,-56 -1792,-168 -1944,-472 -2232,-456 -2512,-48 -2496,392 -2416,488 -1960,488 -1320,376 -744,320 -648,440 -688,576 -1400,984 -1944,1144 -2176,1504 -2608,1600 -2632,1864 -2568,2032 -2272,2136 -1872,2144 -1728,2032 -1560,1712 -1560,1400 -1376,1264 -1184,1416 -1184,1848 -1144,2064 -968,2160 -488,2160 -344,2048 -264,1856 -8,1736 16,1640 -360,1424 -416,1248 -304,1160 -88,1152 0,1040"/>
+  </object>
  </objectgroup>
 </map>

@@ -144,6 +144,7 @@ class Kart(Billboard):
         super().project()
 
 
+
 class PathFollower(Kart):
     # AI kart that steers along a closed polygon (see Nature of Code path following)
     def __init__(self, game, path_points, kart_name, start_pos, start_angle):
@@ -157,15 +158,16 @@ class PathFollower(Kart):
         self.visible = False
 
         self.path_points = [vec(point) for point in path_points]
-        self.path_radius = 8       # px, no steering while inside
+        self.path_radius = game.config["Gameplay.ai_path_radius"]       # px, no steering while inside
         # player's terminal speed on road: v = friction * (v + speed / FPS)
-        friction = 0.9
+        friction = game.config["Gameplay.friction"]
         player_top_speed = friction * game.player.speed / game.config["Video.fps"] / (1 - friction)
-        speed_factor = 1.2
+        speed_factor = game.config["Gameplay.ai_speed_factor"]
         self.max_speed = player_top_speed * speed_factor
-        self.max_force = 5 * self.max_speed 
-        self.look_ahead_time = 0.2  # s
-        self.target_ahead = 40      # px along the path
+        self.max_force = game.config["Gameplay.ai_max_force"] * self.max_speed 
+        self.look_ahead_time = game.config["Gameplay.ai_look_ahead_time"]  # seconds
+        self.steer_response_time = game.config["Gameplay.ai_steer_response_time"]
+        self.target_ahead = game.config["Gameplay.ai_target_ahead"]      # px along the path
 
         self.map_pos = vec(start_pos)
         self.vel = vec()  # standing on the grid until the race starts
@@ -210,7 +212,7 @@ class PathFollower(Kart):
         if desired.length_squared() == 0:
             return
         desired.scale_to_length(self.max_speed)
-        steer = desired - self.vel
+        steer = (desired - self.vel) / self.steer_response_time
         if steer.length() > self.max_force:
             steer.scale_to_length(self.max_force)
         self.acc += steer
