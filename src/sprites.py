@@ -1,5 +1,5 @@
 import pygame as pg
-from math import sin, cos, pi
+from math import sin, cos, pi, atan2, degrees, radians
 from os import path
 from enum import Enum
 
@@ -8,9 +8,20 @@ from src.particle import Particle
 vec = pg.math.Vector2
 
 
-# ENUMS correspond to kart image index
-LEFT = [5, 4, 3, 2, 1, 0]
-RIGHT = [5, 6, 7, 8, 9, 10]
+# viewing angle of each kart frame in deg: 0 = behind, 90 = side (index 7), 180 = front
+KART_FRAME_ANGLES = [i * 90 / 7 for i in range(8)] + [90 + i * 22.5 for i in range(1, 5)]
+MAX_STEER_FRAMES = 5  # frames the kart turns visually at full steering
+STEER_FRAME_ANGLE = radians(KART_FRAME_ANGLES[1])  # yaw per steering frame
+
+
+def get_kart_frame(images, flipped_images, yaw):
+    # yaw in rad, positive = kart turned right relative to the view direction
+    yaw_degrees = (degrees(yaw) + 180) % 360 - 180  # -180..180
+    view_angle = abs(yaw_degrees)
+    index = min(range(len(KART_FRAME_ANGLES)),
+                key=lambda i: abs(KART_FRAME_ANGLES[i] - view_angle))
+    return images[index] if yaw_degrees >= 0 else flipped_images[index]
+
 
 class Direction(Enum):
     LEFT = 0
@@ -101,17 +112,39 @@ class Billboard(pg.sprite.Sprite):
             screen.blit(self.image, self.rect)
 
 
-class PathFollower(Billboard):
-    # billboard that steers along a closed polygon (Nature of Code path following)
-    def __init__(self, game, path_points, image_name="bush", world_width=12):
+class Kart(Billboard):
+    # billboard using the kart sheet, needs angle, steer_yaw and map_pos
+    @property
+    def world_width(self):
+        # world size that projects to the native sprite width at kart distance
+        mode7 = self.game.map
+        screen_w = self.game.game_screen_rect.w
+        frustum_dist = mode7.kart_ground_distance() / cos(mode7.fov_half)
+        row_width = 2 * frustum_dist * sin(mode7.fov_half)
+        return self.base_image.get_width() * row_width / screen_w
+
+
+    def project(self):
+        # pick the frame from viewing angle + steering, then project as usual
+        camera = self.game.camera
+        to_kart = self.map_pos - camera.pos
+        if to_kart.length_squared() > 0:
+            view_angle = atan2(to_kart.y, to_kart.x)
+        else:
+            view_angle = camera.angle
+        yaw = self.angle - view_angle + self.steer_yaw
+        self.base_image = get_kart_frame(
+            self.game.player_images, self.game.player_images_flipped, yaw)
+        super().project()
+
+
+class PathFollower(Kart):
+    # AI kart that steers along a closed polygon (see Nature of Code path following)
+    def __init__(self, game, path_points):
         pg.sprite.Sprite.__init__(self, game.billboards)
         self.game = game
-        self.name = image_name
-        self.world_width = world_width
-        if self.name not in Billboard.base_images:
-            Billboard.base_images[self.name] = pg.image.load(
-                path.join(game.assets_folder, f"{self.name}.png")).convert_alpha()
-        self.base_image = Billboard.base_images[self.name]
+        self.name = "ai_kart"
+        self.base_image = game.player_images[0]
         self.image = self.base_image
         self.rect = self.image.get_rect()
         self.depth = 0
@@ -133,6 +166,12 @@ class PathFollower(Billboard):
         start_direction = self.path_points[1] - self.path_points[0]
         self.vel = start_direction.normalize() * self.max_speed
         self.acc = vec()
+
+        self.angle = atan2(self.vel.y, self.vel.x)
+        self.steer_yaw = 0.0
+        self.turn_rate = 0.0  # rad/s, smoothed
+        # player's turn rate at top speed -> full steering frames
+        self.max_turn_rate = game.config["Gameplay.turn_force_fast"] * player_top_speed
 
 
     def get_normal_point(self, point, segment_start, segment_end):
@@ -181,13 +220,29 @@ class PathFollower(Billboard):
             self.vel += self.acc * dt
             if self.vel.length() > self.max_speed:
                 self.vel.scale_to_length(self.max_speed)
-            # self.vel.scale_to_length(self.max_speed)
+
             self.map_pos += self.vel * dt
             self.acc *= 0
+            self.update_steering(dt)
+
+
+    def update_steering(self, dt):
+        if dt <= 0 or self.vel.length_squared() == 0:
+            return
+        new_angle = atan2(self.vel.y, self.vel.x)
+        angle_change = (new_angle - self.angle + pi) % (2 * pi) - pi
+        self.angle = new_angle
+        # low-pass filter so small corrections don't flicker
+        smoothing = min(1.0, dt * 10)
+        self.turn_rate += (angle_change / dt - self.turn_rate) * smoothing
+        steer_frames = min(MAX_STEER_FRAMES,
+                           round(abs(self.turn_rate) / self.max_turn_rate * MAX_STEER_FRAMES))
+        steer_sign = 1 if self.turn_rate > 0 else -1
+        self.steer_yaw = steer_sign * steer_frames * STEER_FRAME_ANGLE
 
 
 
-class Player(Billboard):
+class Player(Kart):
     def __init__(self, game):
         pg.sprite.Sprite.__init__(self, game.billboards)
         self.game = game
@@ -202,7 +257,8 @@ class Player(Billboard):
         self.speed = 1800
         self.last_road_pos = vec(0, 0)  # last known position on road
         
-        self.base_image = game.player_images[LEFT[0]]  # current unscaled frame
+        self.base_image = game.player_images[0]  # current unscaled frame
+        self.steer_yaw = 0.0  # visual turn from steering in rad, positive = right
         self.image = self.base_image
         self.rect = self.image.get_rect()
         self.rect.topleft = (84, 84)
@@ -257,21 +313,15 @@ class Player(Billboard):
             current_speed = self.vel.length()
             
             # steer
-            # cap the image index at 4 (len of animation minus 2)
-            index = min(4, int(self.steer_time * steer_anim_speed))
-            
+            steer_frames = min(MAX_STEER_FRAMES - 1, int(self.steer_time * steer_anim_speed))
+
             if keys[pg.K_a]:
                 # turning left
                 if self.lastdir == Direction.RIGHT:
                     self.steer_time = 0
-                # increase the steering time
                 self.steer_time += dt
                 self.angle -= turn_force * dt * current_speed * self.moving
-                # add 1 to the index to get the first turning sprite and set the image
-                if self.moving == 1:
-                    self.base_image = self.game.player_images[LEFT[index + 1]]
-                else:
-                    self.base_image = self.game.player_images[RIGHT[index + 1]]
+                steer_frames += 1  # first turning frame right away
                 self.lastdir = Direction.LEFT
             elif keys[pg.K_d]:
                 # turning right
@@ -279,22 +329,14 @@ class Player(Billboard):
                     self.steer_time = 0
                 self.steer_time += dt
                 self.angle += turn_force * dt * current_speed * self.moving
-                if self.moving == 1:
-                    self.base_image = self.game.player_images[RIGHT[index + 1]]
-                else:
-                    self.base_image = self.game.player_images[LEFT[index + 1]]
+                steer_frames += 1
                 self.lastdir = Direction.RIGHT
             else:
-                if self.lastdir == Direction.LEFT and self.moving == 1:
-                    self.base_image = self.game.player_images[LEFT[index]]
-                elif self.lastdir == Direction.LEFT and self.moving == -1:
-                    self.base_image = self.game.player_images[RIGHT[index]]
-                elif self.lastdir == Direction.RIGHT and self.moving == 1:
-                    self.base_image = self.game.player_images[RIGHT[index]]
-                elif self.lastdir == Direction.RIGHT and self.moving == -1:
-                    self.base_image = self.game.player_images[LEFT[index]]
-                
                 self.steer_time -= dt
+
+            # reversing turns the kart the other way
+            steer_sign = 1 if self.lastdir == Direction.RIGHT else -1
+            self.steer_yaw = steer_sign * self.moving * steer_frames * STEER_FRAME_ANGLE
             
             # limit the steer time between 0 and the maximum image index
             self.steer_time = max(min(self.steer_time, 0.6), 0)
@@ -413,16 +455,6 @@ class Player(Billboard):
     @property
     def map_pos(self):
         return self.pos
-
-
-    @property
-    def world_width(self):
-        # world size that projects to the native sprite width at kart distance
-        mode7 = self.game.map
-        screen_w = self.game.game_screen_rect.w
-        frustum_dist = mode7.kart_ground_distance() / cos(mode7.fov_half)
-        row_width = 2 * frustum_dist * sin(mode7.fov_half)
-        return self.base_image.get_width() * row_width / screen_w
 
 
 

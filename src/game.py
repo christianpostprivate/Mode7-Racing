@@ -62,9 +62,13 @@ class Game:
         self.running = True
         
         player_image_strip = pg.image.load(
-                path.join(self.assets_folder, "kart2.png")).convert_alpha()
-        self.player_images = [player_image_strip.subsurface((i * 30, 0, 30, 32)) 
-                              for i in range(11)]
+                path.join(self.assets_folder, "kart2.png")
+                ).convert_alpha()
+        self.player_images = [player_image_strip.subsurface((i * 30, 0, 30, 32))
+                              for i in range(12)]
+        # mirrored frames for karts turned left
+        self.player_images_flipped = [pg.transform.flip(image, True, False)
+                                      for image in self.player_images]
         
         self.cloud_image = pg.image.load(
                 path.join(self.assets_folder, "cloud.png")).convert_alpha()
