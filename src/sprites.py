@@ -1,5 +1,6 @@
 import pygame as pg
-from math import sin, cos, pi, atan2, degrees, radians
+from math import sin, cos, pi, atan2, degrees, radians, exp
+from random import uniform
 from os import path
 from enum import Enum
 
@@ -163,8 +164,19 @@ class PathFollower(Kart):
         friction = game.config["Gameplay.friction"]
         player_top_speed = friction * game.player.speed / game.config["Video.fps"] / (1 - friction)
         speed_factor = game.config["Gameplay.ai_speed_factor"]
-        self.max_speed = player_top_speed * speed_factor
-        self.max_force = game.config["Gameplay.ai_max_force"] * self.max_speed 
+        self.base_max_speed = player_top_speed * speed_factor
+        self.max_speed = self.base_max_speed
+        # force stays tied to base speed so handling doesn't change with variance
+        self.max_force = game.config["Gameplay.ai_max_force"] * self.base_max_speed
+
+        # speed variance: ease toward a random target that changes every few seconds
+        self.speed_variance = game.config["Gameplay.ai_speed_variance"]
+        self.speed_interval_min = game.config["Gameplay.ai_speed_interval_min"]
+        self.speed_interval_max = game.config["Gameplay.ai_speed_interval_max"]
+        self.speed_smoothing = game.config["Gameplay.ai_speed_smoothing"]
+        self.variance_factor = 1.0
+        self.target_variance_factor = 1.0
+        self.time_until_variance_change = 0.0
         self.look_ahead_time = game.config["Gameplay.ai_look_ahead_time"]  # seconds
         self.steer_response_time = game.config["Gameplay.ai_steer_response_time"]
         self.separation_distance = game.config["Gameplay.ai_separation_distance"]  # in kart widths
@@ -250,8 +262,22 @@ class PathFollower(Kart):
             self.acc += heading * self.max_force
 
 
+    def update_speed_variance(self, dt):
+        self.time_until_variance_change -= dt
+        if self.time_until_variance_change <= 0:
+            self.target_variance_factor = 1.0 + uniform(-self.speed_variance,
+                                                        self.speed_variance)
+            self.time_until_variance_change = uniform(self.speed_interval_min,
+                                                      self.speed_interval_max)
+        # framerate independent exponential smoothing
+        blend = 1 - exp(-self.speed_smoothing * dt)
+        self.variance_factor += (self.target_variance_factor - self.variance_factor) * blend
+        self.max_speed = self.base_max_speed * self.variance_factor
+
+
     def update(self, dt):
         if self.game.started:
+            self.update_speed_variance(dt)
             self.follow_path()
             self.separate()
             self.accelerate()
