@@ -21,9 +21,10 @@ class RacePhase(Enum):
 class Race(Scene):
     MAX_LAPS = 3
 
-    def __init__(self, game, course_name="track2", **kwargs):
+    def __init__(self, game, course_name="track2", kart_name="kart2", **kwargs):
         super().__init__(game)
         self.course_name = course_name
+        self.kart_name = kart_name
         self.phase = RacePhase.COUNTDOWN
 
         # read by HUD
@@ -57,24 +58,33 @@ class Race(Scene):
             traceback.print_exc()
         self.game.course = self.course
 
-        self.player = self.game.player = Player(self.game)
+        self.player = self.game.player = Player(self.game, self.kart_name)
         self.traffic_light = TrafficLight(self.game, (100, 60))
         self.map = self.game.map = Mode7(self.game, self.course.image if self.course else None)
         self.camera = self.game.camera = Camera(self.game, target=self.player)
 
         if self.course:
-            start_pos = self.course.get_start_position(8)
+            start_pos = self.course.get_start_position(self.game.config["Gameplay.player_start_pos"])
             if start_pos is not None:
                 self.player.pos = start_pos
             self.checkpoints = self.course.game_object_data.get("checkpoints", [])
             self.num_checkpoints = max(
                 (obj.properties.get("number", 0) for obj in self.checkpoints), default=0)
+            
             for obj in self.course.game_object_data.get("sprites", []):
                 if obj.type == "billboard":
                     Billboard(self.game, obj)
-            for obj in self.course.game_object_data.get("path", []):
-                if obj.type == "path":
-                    PathFollower(self.game, obj.points)
+                    
+            # AI karts on grid positions 1-3, all karts the player didn't pick
+            if len(self.course.path_points) > 1:
+                ai_kart_names = [name for name in self.game.kart_names
+                                 if name != self.kart_name]
+                for position, kart_name in enumerate(ai_kart_names, start=1):
+                    start_pos = self.course.get_start_position(position)
+                    if start_pos is None:
+                        continue
+                    PathFollower(self.game, self.course.path_points, kart_name,
+                                 start_pos, self.player.angle)
 
         # HUD reads lap/time/player/course from the race scene
         self.hud = HUD(self, self.course.tiled_map if self.course else None)

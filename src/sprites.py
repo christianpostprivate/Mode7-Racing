@@ -113,7 +113,14 @@ class Billboard(pg.sprite.Sprite):
 
 
 class Kart(Billboard):
-    # billboard using the kart sheet, needs angle, steer_yaw and map_pos
+    # billboard using a kart sheet, needs angle, steer_yaw and map_pos
+
+    def set_sheet(self, kart_name):
+        self.images = self.game.kart_images[kart_name]
+        self.images_flipped = self.game.kart_images_flipped[kart_name]
+        self.base_image = self.images[0]
+
+
     @property
     def world_width(self):
         # world size that projects to the native sprite width at kart distance
@@ -133,18 +140,17 @@ class Kart(Billboard):
         else:
             view_angle = camera.angle
         yaw = self.angle - view_angle + self.steer_yaw
-        self.base_image = get_kart_frame(
-            self.game.player_images, self.game.player_images_flipped, yaw)
+        self.base_image = get_kart_frame(self.images, self.images_flipped, yaw)
         super().project()
 
 
 class PathFollower(Kart):
     # AI kart that steers along a closed polygon (see Nature of Code path following)
-    def __init__(self, game, path_points):
+    def __init__(self, game, path_points, kart_name, start_pos, start_angle):
         pg.sprite.Sprite.__init__(self, game.billboards)
         self.game = game
-        self.name = "ai_kart"
-        self.base_image = game.player_images[0]
+        self.name = kart_name
+        self.set_sheet(kart_name)
         self.image = self.base_image
         self.rect = self.image.get_rect()
         self.depth = 0
@@ -161,13 +167,11 @@ class PathFollower(Kart):
         self.look_ahead_time = 0.2  # s
         self.target_ahead = 40      # px along the path
 
-        # self.map_pos = self.path_points[0].copy()
-        self.map_pos = vec(1168, 689)
-        start_direction = self.path_points[1] - self.path_points[0]
-        self.vel = start_direction.normalize() * self.max_speed
+        self.map_pos = vec(start_pos)
+        self.vel = vec()  # standing on the grid until the race starts
         self.acc = vec()
 
-        self.angle = atan2(self.vel.y, self.vel.x)
+        self.angle = start_angle
         self.steer_yaw = 0.0
         self.turn_rate = 0.0  # rad/s, smoothed
         # player's turn rate at top speed -> full steering frames
@@ -212,11 +216,17 @@ class PathFollower(Kart):
         self.acc += steer
 
 
+    def accelerate(self):
+        # throttle along the heading, steering alone doesn't speed up the kart
+        if self.vel.length() < self.max_speed:
+            heading = vec(cos(self.angle), sin(self.angle))
+            self.acc += heading * self.max_force
+
+
     def update(self, dt):
         if self.game.started:
-            self.game.debug_values["player_speed"] = f"{self.game.player.vel.length():.0f}"
-            self.game.debug_values["bush_speed"] = f"{self.vel.length():.0f}"
             self.follow_path()
+            self.accelerate()
             self.vel += self.acc * dt
             if self.vel.length() > self.max_speed:
                 self.vel.scale_to_length(self.max_speed)
@@ -243,7 +253,7 @@ class PathFollower(Kart):
 
 
 class Player(Kart):
-    def __init__(self, game):
+    def __init__(self, game, kart_name):
         pg.sprite.Sprite.__init__(self, game.billboards)
         self.game = game
         self.name = "player"
@@ -257,7 +267,7 @@ class Player(Kart):
         self.speed = 1800
         self.last_road_pos = vec(0, 0)  # last known position on road
         
-        self.base_image = game.player_images[0]  # current unscaled frame
+        self.set_sheet(kart_name)  # base_image = current unscaled frame
         self.steer_yaw = 0.0  # visual turn from steering in rad, positive = right
         self.image = self.base_image
         self.rect = self.image.get_rect()

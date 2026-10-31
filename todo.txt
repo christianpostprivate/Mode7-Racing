@@ -1,2 +1,2 @@
-- count laps
+- replace magic numbers with game.config values
 - framerate-independent game speed

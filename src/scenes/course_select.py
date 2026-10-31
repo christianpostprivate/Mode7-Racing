@@ -26,7 +26,7 @@ class CourseSelect(Scene):
         elif event.key in (pg.K_s, pg.K_DOWN):
             self.selected_index = (self.selected_index + 1) % len(self.courses)
         elif event.key in (pg.K_RETURN, pg.K_SPACE):
-            self.game.switch_scene("Race", course_name=self.courses[self.selected_index])
+            self.game.switch_scene("KartSelect", course_name=self.courses[self.selected_index])
 
     def draw(self, screen):
         screen.fill(pg.Color("black"))

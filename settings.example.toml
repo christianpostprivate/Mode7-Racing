@@ -36,6 +36,7 @@ ai_path_radius = 0.8
 ai_max_force = 5
 ai_look_ahead_time = 0.5
 ai_target_ahead = 40
+player_start_pos = 4
 
 [Debug]
 font_size = 16
