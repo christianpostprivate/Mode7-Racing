@@ -243,13 +243,17 @@ class PathFollower(Kart):
             offset = self.map_pos - other.map_pos
             distance = offset.length()
             if 0 < distance < min_distance:
-                push_sum += offset.normalize() / distance  # closer -> stronger
+                # 0 at edge of range, 1 when touching -> no on/off jump
+                closeness = 1 - distance / min_distance
+                push_sum += offset.normalize() * closeness
                 count += 1
         if count == 0:
             return
-        desired = push_sum / count
-        desired.scale_to_length(self.max_speed)
-        steer = (desired - self.vel) / self.steer_response_time
+        # sideways only, so separation doesn't brake or accelerate
+        heading = vec(cos(self.angle), sin(self.angle))
+        side = vec(-heading.y, heading.x)
+        lateral_push = side * push_sum.dot(side)
+        steer = lateral_push * self.max_force
         if steer.length() > self.max_force:
             steer.scale_to_length(self.max_force)
         self.acc += steer * self.separation_weight
