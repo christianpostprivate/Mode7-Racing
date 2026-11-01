@@ -434,8 +434,7 @@ class Player(Kart):
     
             
             # jiggle texture up and down
-            JIGGLE_SPEED = 8
-            if int(self.time_passed * JIGGLE_SPEED) % 2 == 0 and current_speed >= 32:
+            if int(self.time_passed * self.game.config["Visuals.kart_jiggle_speed"]) % 2 == 0 and current_speed >= 32:
                 self.rect.top = 85
             else:
                 self.rect.top = 84

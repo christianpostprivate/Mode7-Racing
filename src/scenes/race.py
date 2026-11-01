@@ -191,9 +191,11 @@ class Race(Scene):
             billboard.draw(screen)
         for sprite in self.game.all_sprites:
             sprite.draw(screen)
-        self.hud.draw(screen)
 
-        if self.phase == RacePhase.FINISHED:
+        if self.phase in [RacePhase.COUNTDOWN, RacePhase.RACING]:
+            self.hud.draw(screen)
+
+        elif self.phase == RacePhase.FINISHED:
             shade = pg.Surface(screen.get_size(), pg.SRCALPHA)
             shade.fill((0, 0, 0, 140))
             screen.blit(shade, (0, 0))

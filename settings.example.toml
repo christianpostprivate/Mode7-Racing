@@ -13,10 +13,12 @@ sky_scroll_rate = 1.0
 mountain_scroll_rate = 0.6
 menu_font_size = 8
 dust_cloud_interval = 0.2
+kart_jiggle_speed = 8
 
 [Hud]
 font_size = 8
 minimap_size = 36
+margin = 3
 speed_bars = 6
 speed_bar_w = 2
 speed_bar_gap = 1

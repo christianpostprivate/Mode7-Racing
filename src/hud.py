@@ -20,30 +20,23 @@ def build_minimap(tiled_map, size, layer_name="road",
 
 
 class HUD:
-    # sizes are in game_screen pixels (drawn before upscaling)
-    MARGIN = 3
     FONT_PATH = path.join(path.dirname(__file__), "..", "assets", "PressStart2P.ttf")
-    FONT_SIZE = 8
-    MINIMAP_SIZE = (36, 36)
-    SPEED_BARS = 6
-    BAR_W = 2
-    BAR_GAP = 1
-    BAR_MIN_H = 2
-    BAR_STEP_H = 1
     MAX_SPEED = 240  # max speed approximation, TODO set elswhere
-    LAP_TIME_DURATION = 5000  # ms the last lap time stays visible
 
-    def __init__(self, game, tiled_map=None):
-        self.game = game
-        self.font = pg.font.Font(self.FONT_PATH, self.FONT_SIZE)
-        self.minimap = build_minimap(tiled_map, self.MINIMAP_SIZE) if tiled_map else None
+    def __init__(self, race, tiled_map=None):
+        self.race = race
+        self.game = game = race.game
+        self.font = pg.font.Font(self.FONT_PATH, game.config["Hud.font_size"])
+        minimap_s = game.config["Hud.minimap_size"]
+        self.minimap = build_minimap(tiled_map, (minimap_s, minimap_s)) if tiled_map else None
+        self.MARGIN = game.config["Hud.margin"]
         self.last_lap_time = None
         self.lap_time_until = 0  # pg.time.get_ticks() timestamp
 
     def handle_event(self, event):
         if event.type == LAP_COMPLETED:
             self.last_lap_time = event.lap_time
-            self.lap_time_until = pg.time.get_ticks() + self.LAP_TIME_DURATION
+            self.lap_time_until = pg.time.get_ticks() + self.game.config["Hud.lap_time_showing_duration"]
 
     @staticmethod
     def format_time(t):
@@ -60,12 +53,12 @@ class HUD:
         return rect
 
     def draw_lap_and_time(self, screen):
-        g = self.game
-        lap = min(g.current_lap, g.max_laps)
-        self.draw_text(screen, f"LAP {lap}/{g.max_laps}",
+        r = self.race
+        lap = min(r.current_lap, r.max_laps)
+        self.draw_text(screen, f"LAP {lap}/{r.max_laps}",
                        (self.MARGIN, self.MARGIN), anchor="topleft")
         right = screen.get_width() - self.MARGIN
-        r = self.draw_text(screen, f"TIME {self.format_time(g.race_time)}",
+        r = self.draw_text(screen, f"TIME {self.format_time(r.race_time)}",
                            (right, self.MARGIN))
 
         # last lap time, shown briefly after finishing a lap
@@ -74,26 +67,33 @@ class HUD:
                            (right, r.bottom))
 
     def draw_speedometer(self, screen):
+        num_speed_bars = self.game.config["Hud.speed_bars"]
+        bar_w = self.game.config["Hud.speed_bar_w"]
+        bar_gap = self.game.config["Hud.speed_bar_gap"]
+        bar_min_h = self.game.config["Hud.speed_bar_min_h"]
+        bar_step_h = self.game.config["Hud.speed_bar_step_h"]
+
         frac = min(self.game.player.vel.length() / self.MAX_SPEED, 1.0)
-        lit = round(frac * self.SPEED_BARS)
+        lit = round(frac * num_speed_bars)
         x = self.MARGIN
         bottom = screen.get_height() - self.MARGIN
-        for i in range(self.SPEED_BARS):
-            h = self.BAR_MIN_H + i * self.BAR_STEP_H
-            rect = pg.Rect(x, bottom - h, self.BAR_W, h)
+
+        for i in range(num_speed_bars):
+            h = bar_min_h + i * bar_step_h
+            rect = pg.Rect(x, bottom - h, bar_w, h)
             if i < lit:
-                t = i / max(self.SPEED_BARS - 1, 1)
+                t = i / max(num_speed_bars - 1, 1)
                 color = (int(80 + 175 * t), int(230 - 150 * t), 60)  # green -> red
             else:
                 color = (60, 60, 60)
             pg.draw.rect(screen, (0, 0, 0), rect.inflate(2, 2))
             pg.draw.rect(screen, color, rect)
-            x += self.BAR_W + self.BAR_GAP
+            x += bar_w + bar_gap
 
     def draw_minimap(self, screen):
         if self.minimap is None:
             return
-        mw, mh = self.MINIMAP_SIZE
+        mw = mh = self.game.config["Hud.minimap_size"]
         rect = self.minimap.get_rect(bottomright=(screen.get_width() - self.MARGIN,
                                                   screen.get_height() - self.MARGIN))
         screen.blit(self.minimap, rect)
@@ -101,8 +101,8 @@ class HUD:
 
         # player as single pixel + heading pixel (dot)
         p = self.game.player
-        map_w = self.game.course.pixel_width
-        map_h = self.game.course.pixel_height
+        map_w = self.race.course.pixel_width
+        map_h = self.race.course.pixel_height
         dot = vec(rect.x + min(max(p.pos.x / map_w, 0), 1) * mw,
                   rect.y + min(max(p.pos.y / map_h, 0), 1) * mh)
         tip = dot + vec(2, 0).rotate_rad(p.angle)
