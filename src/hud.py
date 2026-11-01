@@ -25,34 +25,41 @@ class HUD:
     FONT_PATH = path.join(path.dirname(__file__), "..", "assets", "PressStart2P.ttf")
     MAX_SPEED = 240  # max speed approximation, TODO set elswhere
 
+
     def __init__(self, race, tiled_map=None):
         self.race = race
         self.game = game = race.game
         self.font = pg.font.Font(self.FONT_PATH, game.config["Hud.font_size"])
+        self.position_font = pg.font.Font(self.FONT_PATH, game.config["Hud.position_font_size"])
         minimap_s = game.config["Hud.minimap_size"]
         self.minimap = build_minimap(tiled_map, (minimap_s, minimap_s)) if tiled_map else None
         self.MARGIN = game.config["Hud.margin"]
         self.last_lap_time = None
         self.lap_time_until = 0  # pg.time.get_ticks() timestamp
 
+
     def handle_event(self, event):
         if event.type == LAP_COMPLETED:
             self.last_lap_time = event.lap_time
             self.lap_time_until = pg.time.get_ticks() + self.game.config["Hud.lap_time_showing_duration"]
+
 
     @staticmethod
     def format_time(t):
         m, s = divmod(t, 60)
         return f"{int(m):02d}:{s:05.2f}"
 
-    def draw_text(self, screen, text, pos, anchor="topright"):
+
+    def draw_text(self, screen, text, pos, anchor="topright", font=None):
         # no antialiasing to keep hard pixel edges
-        shadow = self.font.render(text, False, (0, 0, 0))
-        surf = self.font.render(text, False, (255, 255, 255))
+        font = font or self.font
+        shadow = font.render(text, False, (0, 0, 0))
+        surf = font.render(text, False, (255, 255, 255))
         rect = surf.get_rect(**{anchor: pos})
         screen.blit(shadow, rect.move(1, 1))
         screen.blit(surf, rect)
         return rect
+
 
     def draw_lap_and_time(self, screen):
         r = self.race
@@ -67,6 +74,7 @@ class HUD:
         if self.last_lap_time is not None and pg.time.get_ticks() < self.lap_time_until:
             self.draw_text(screen, f"LAP {self.format_time(self.last_lap_time)}",
                            (right, r.bottom))
+
 
     def draw_speedometer(self, screen):
         num_speed_bars = self.game.config["Hud.speed_bars"]
@@ -91,6 +99,7 @@ class HUD:
             pg.draw.rect(screen, (0, 0, 0), rect.inflate(2, 2))
             pg.draw.rect(screen, color, rect)
             x += bar_w + bar_gap
+
 
     def draw_minimap(self, screen):
         if self.minimap is None:
@@ -132,8 +141,16 @@ class HUD:
                          + (config["Hud.speed_bars"] - 1) * config["Hud.speed_bar_step_h"])
         bottom = screen.get_height() - self.MARGIN - speedometer_h - 3
         position = standings.position_of(self.game.player)
-        self.draw_text(screen, f"{position}/{len(standings.karts)}",
-                       (self.MARGIN, bottom), anchor="bottomleft")
+        # big position number, small "/N" on the same baseline
+        baseline = bottom + self.position_font.get_descent()  # descent is negative
+        position_rect = self.draw_text(
+            screen, str(position),
+            (self.MARGIN, baseline - self.position_font.get_ascent()),
+            anchor="topleft", font=self.position_font)
+        self.draw_text(screen, f"/{len(standings.karts)}",
+                       (position_rect.right, baseline - self.font.get_ascent()),
+                       anchor="topleft")
+
 
     def draw(self, screen):
         self.draw_lap_and_time(screen)

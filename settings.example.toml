@@ -17,6 +17,7 @@ kart_jiggle_speed = 8
 
 [Hud]
 font_size = 8
+position_font_size = 24
 minimap_size = 36
 margin = 3
 speed_bars = 6
