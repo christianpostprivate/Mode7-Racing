@@ -1,6 +1,8 @@
 import pygame as pg
 from os import path
 
+from src.sprites import Kart
+
 vec = pg.math.Vector2
 
 # posted by Game with attributes: lap (int), lap_time (float, seconds)
@@ -99,17 +101,42 @@ class HUD:
         screen.blit(self.minimap, rect)
         pg.draw.rect(screen, (255, 255, 255), rect.inflate(2, 2), 1)
 
-        # player as single pixel + heading pixel (dot)
-        p = self.game.player
         map_w = self.race.course.pixel_width
         map_h = self.race.course.pixel_height
-        dot = vec(rect.x + min(max(p.pos.x / map_w, 0), 1) * mw,
-                  rect.y + min(max(p.pos.y / map_h, 0), 1) * mh)
-        tip = dot + vec(2, 0).rotate_rad(p.angle)
+
+        def to_minimap(map_pos):
+            return vec(rect.x + min(max(map_pos.x / map_w, 0), 1) * mw,
+                       rect.y + min(max(map_pos.y / map_h, 0), 1) * mh)
+
+        # AI karts first, so the player is drawn on top
+        for kart in self.game.billboards:
+            if not isinstance(kart, Kart) or kart is self.game.player:
+                continue
+            dot = to_minimap(kart.map_pos)
+            pg.draw.rect(screen, (60, 140, 255), (int(dot.x) - 1, int(dot.y) - 1, 2, 2))
+
+        # player as single pixel + heading pixel (dot)
+        player = self.game.player
+        dot = to_minimap(player.pos)
+        tip = dot + vec(2, 0).rotate_rad(player.angle)
         screen.set_at((int(tip.x), int(tip.y)), (255, 200, 60))
         pg.draw.rect(screen, (255, 60, 60), (int(dot.x) - 1, int(dot.y) - 1, 2, 2))
+
+
+    def draw_position(self, screen):
+        standings = self.race.standings
+        if standings is None:
+            return
+        config = self.game.config
+        speedometer_h = (config["Hud.speed_bar_min_h"]
+                         + (config["Hud.speed_bars"] - 1) * config["Hud.speed_bar_step_h"])
+        bottom = screen.get_height() - self.MARGIN - speedometer_h - 3
+        position = standings.position_of(self.game.player)
+        self.draw_text(screen, f"{position}/{len(standings.karts)}",
+                       (self.MARGIN, bottom), anchor="bottomleft")
 
     def draw(self, screen):
         self.draw_lap_and_time(screen)
         self.draw_speedometer(screen)
         self.draw_minimap(screen)
+        self.draw_position(screen)

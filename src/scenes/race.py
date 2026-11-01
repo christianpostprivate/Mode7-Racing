@@ -7,9 +7,13 @@ from src.scenes.scene import Scene
 from src.render import Mode7
 from src.camera import Camera, FollowMode, OrbitMode
 from src.course import Course
-from src.sprites import Player, TrafficLight, Billboard, PathFollower
+from src.sprites import Player, TrafficLight, Billboard, PathFollower, Kart
+from src.standings import RaceStandings
 from src.hud import HUD, LAP_COMPLETED
 import src.utils as utils
+
+
+vec = pg.math.Vector2
 
 
 class RacePhase(Enum):
@@ -43,6 +47,7 @@ class Race(Scene):
         self.traffic_light = None
         self.checkpoints = []
         self.num_checkpoints = 0
+        self.standings = None
 
 
     def startup(self):
@@ -85,6 +90,15 @@ class Race(Scene):
                         continue
                     PathFollower(self.game, self.course.path_points, kart_name,
                                  start_pos, self.player.angle)
+
+                finish = next((c for c in self.checkpoints if c.name == "finish"), None)
+                if finish is not None:
+                    finish_center = sum((vec(p) for p in finish.points), vec()) / len(finish.points)
+                    self.standings = RaceStandings(self.course.path_points,
+                                                   finish_center, self.max_laps)
+                    for kart in self.game.billboards:
+                        if isinstance(kart, Kart):
+                            self.standings.add_kart(kart, auto_finish=kart is not self.player)
 
         # HUD reads lap/time/player/course from the race scene
         self.hud = HUD(self, self.course.tiled_map if self.course else None)
@@ -147,13 +161,19 @@ class Race(Scene):
             self.race_time += dt
             self.game.all_sprites.update(dt)
             self.game.billboards.update(dt)
+            if self.standings:
+                self.standings.update()
             self.check_lap_progress()
             if self.current_lap > self.max_laps:
                 self.phase = RacePhase.FINISHED
+                if self.standings:
+                    self.standings.mark_finished(self.player)
 
         elif self.phase == RacePhase.FINISHED:
             # world keeps running, player is frozen
             self.game.all_sprites.update(dt)
+            if self.standings:
+                self.standings.update()  # AI karts still finish behind the player
             for billboard in self.game.billboards:
                 if billboard is not self.player:
                     billboard.update(dt)
@@ -208,6 +228,10 @@ class Race(Scene):
             text_x = center_x - max(self.game.font.size(line)[0] for line in lines) // 2
 
             self.draw_text(screen, "FINISH!", (center_x, 40), "yellow")
+            if self.standings:
+                position = self.standings.position_of(self.player)
+                self.draw_text(screen, f"POS {position}/{len(self.standings.karts)}",
+                               (center_x, 52))
 
             fastest_lap = self.lap_times.index(min(self.lap_times)) + 1
             y = 65
