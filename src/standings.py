@@ -83,6 +83,16 @@ class RaceStandings:
             self.finish_order.append(kart)
 
 
+    def replace_kart(self, old_kart, new_kart):
+        # new kart takes over position, laps and finish place
+        # used when the player crosses the finish line and turns into an AI kart
+        self.karts[self.karts.index(old_kart)] = new_kart
+        if old_kart in self.finish_order:
+            self.finish_order[self.finish_order.index(old_kart)] = new_kart
+        for table in (self.auto_finish, self.last_distance, self.laps, self.progress):
+            table[new_kart] = table.pop(old_kart)
+
+
     def ranking(self):
         def sort_key(kart):
             if kart in self.finish_order:

@@ -194,6 +194,11 @@ class PathFollower(Kart):
         self.max_turn_rate = game.config["Gameplay.turn_force_fast"] * player_top_speed
 
 
+    @property
+    def pos(self):
+        return self.map_pos
+
+
     def get_normal_point(self, point, segment_start, segment_end):
         # closest point to 'point' on the segment
         segment = segment_end - segment_start

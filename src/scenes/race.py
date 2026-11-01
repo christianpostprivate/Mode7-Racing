@@ -147,6 +147,21 @@ class Race(Scene):
                     self.current_checkpoint = number
 
 
+    def hand_player_to_ai(self):
+        # no path on this course -> player just stays frozen
+        if not self.course or len(self.course.path_points) <= 1:
+            return
+        old_player = self.player
+        ai_kart = PathFollower(self.game, self.course.path_points, self.kart_name,
+                               old_player.pos, old_player.angle)
+        ai_kart.vel = old_player.vel.copy()
+        old_player.kill()
+        if self.standings:
+            self.standings.replace_kart(old_player, ai_kart)
+        self.camera.target = ai_kart
+        self.player = self.game.player = ai_kart
+
+
     def update(self, dt):
         self.map.update(dt)
 
@@ -168,14 +183,17 @@ class Race(Scene):
                 self.phase = RacePhase.FINISHED
                 if self.standings:
                     self.standings.mark_finished(self.player)
+                # replace player with AI kart
+                self.hand_player_to_ai()
+                self.camera.set_mode(OrbitMode())
 
         elif self.phase == RacePhase.FINISHED:
-            # world keeps running, player is frozen
+            # world keeps running, player kart is now AI driven
             self.game.all_sprites.update(dt)
             if self.standings:
                 self.standings.update()  # AI karts still finish behind the player
             for billboard in self.game.billboards:
-                if billboard is not self.player:
+                if not isinstance(billboard, Player):
                     billboard.update(dt)
 
         # after all movement, so floor and billboards use the same camera
@@ -186,8 +204,9 @@ class Race(Scene):
         # debugging
         self.game.debug_values["phase"] = self.phase.name
         self.game.debug_values["pos"] = f"{self.player.pos.x:.3f}, {self.player.pos.y:.3f}"
-        self.game.debug_values["last_road_pos"] = (
-            f"{self.player.last_road_pos.x:.3f}, {self.player.last_road_pos.y:.3f}")
+        if isinstance(self.player, Player):
+            self.game.debug_values["last_road_pos"] = (
+                f"{self.player.last_road_pos.x:.3f}, {self.player.last_road_pos.y:.3f}")
         self.game.debug_values["lap"] = f"{self.current_lap}/{self.max_laps}"
         self.game.debug_values["checkpoint"] = f"{self.current_checkpoint}"
 
