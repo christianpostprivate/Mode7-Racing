@@ -10,9 +10,10 @@ class CourseSelect(Scene):
     def __init__(self, game, **kwargs):
         super().__init__(game)
         # every .tmx file in the assets folder is a course
-        tmx_files = glob.glob(path.join(game.assets_folder, "*.tmx"))
+        tmx_files = glob.glob(path.join(game.assets_folder, "courses", "*.tmx"))
         self.courses = sorted(path.splitext(path.basename(f))[0] for f in tmx_files)
         self.selected_index = 0
+
 
     def get_event(self, event):
         if event.type != pg.KEYDOWN:
@@ -27,6 +28,7 @@ class CourseSelect(Scene):
             self.selected_index = (self.selected_index + 1) % len(self.courses)
         elif event.key in (pg.K_RETURN, pg.K_SPACE):
             self.game.switch_scene("KartSelect", course_name=self.courses[self.selected_index])
+
 
     def draw(self, screen):
         screen.fill(pg.Color("black"))

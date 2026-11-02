@@ -22,9 +22,8 @@ def build_minimap(tiled_map, size, layer_name="road",
 
 
 class HUD:
-    FONT_PATH = path.join(path.dirname(__file__), "..", "assets", "PressStart2P.ttf")
+    FONT_PATH = path.join(path.dirname(__file__), "..", "assets", "fonts", "PressStart2P.ttf")
     MAX_SPEED = 240  # max speed approximation, TODO set elswhere
-
 
     def __init__(self, race, tiled_map=None):
         self.race = race

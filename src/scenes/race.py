@@ -1,5 +1,6 @@
 import traceback
 from enum import Enum, auto
+from os import path
 
 import pygame as pg
 
@@ -58,7 +59,10 @@ class Race(Scene):
         self.game.course = None
 
         try:
-            self.course = Course(self.game.assets_folder, self.course_name)
+            self.course = Course(
+                path.join(self.game.assets_folder, "courses"), 
+                self.course_name
+                )
         except Exception:
             traceback.print_exc()
         self.game.course = self.course
@@ -222,7 +226,7 @@ class Race(Scene):
 
 
     def draw(self, screen):
-        self.blit_scrolling(screen, self.game.background, self.game.config["Visuals.sky_scroll_rate"], 0)
+        self.blit_scrolling(screen, self.game.background, self.game.config["Visuals.sky_scroll_rate"], self.game.background_y)
         self.blit_scrolling(screen, self.game.mountains, self.game.config["Visuals.mountain_scroll_rate"], self.game.mountains_y)
         self.map.draw(screen)
         # world sprites far to near, then screen sprites (traffic light, particles)
@@ -258,8 +262,8 @@ class Race(Scene):
                 color = "gold" if index == fastest_lap else "white"
                 line_rect = self.draw_text(screen, line, (text_x, y), color, anchor="midleft")
                 if index == fastest_lap:
-                    star_rect = self.game.star_image.get_rect(midleft=(line_rect.right + 2, line_rect.centery))
-                    screen.blit(self.game.star_image, star_rect)
+                    star_rect = self.game.assets["sprites"]["star"].get_rect(midleft=(line_rect.right + 2, line_rect.centery))
+                    screen.blit(self.game.assets["sprites"]["star"], star_rect)
                 y += line_height
 
             self.draw_text(screen, "Enter: continue", (center_x, y + line_height))

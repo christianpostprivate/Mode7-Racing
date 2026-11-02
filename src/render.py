@@ -96,6 +96,9 @@ class Mode7:
 
 
     def update(self, dt):
+        if not self.game.show_debug:
+            return
+        
         # Debug controls
         keys = pg.key.get_pressed()
         if keys[pg.K_LEFT]:

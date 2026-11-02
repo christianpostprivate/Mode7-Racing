@@ -17,6 +17,7 @@ class KartSelect(Scene):
         self.selected_index = 0
         self.spin_angle = 0.0
 
+
     def get_event(self, event):
         if event.type != pg.KEYDOWN:
             return
@@ -33,8 +34,10 @@ class KartSelect(Scene):
             self.game.switch_scene("Race", course_name=self.course_name,
                                    kart_name=self.game.kart_names[self.selected_index])
 
+
     def update(self, dt):
         self.spin_angle += self.SPIN_SPEED * dt
+
 
     def draw(self, screen):
         screen.fill(pg.Color("black"))
@@ -46,8 +49,8 @@ class KartSelect(Scene):
         for index, kart_name in enumerate(self.game.kart_names):
             is_selected = index == self.selected_index
             yaw = self.spin_angle if is_selected else pi  # others face the camera
-            image = get_kart_frame(self.game.kart_images[kart_name],
-                                   self.game.kart_images_flipped[kart_name], yaw)
+            image = get_kart_frame(self.game.assets["spritesheets"][kart_name],
+                                   self.game.assets["spritesheets"][f"{kart_name}_flipped"], yaw)
             slot_x = first_x + index * self.SLOT_WIDTH
             screen.blit(image, image.get_rect(midbottom=(slot_x, self.KART_BOTTOM)))
             if is_selected:

@@ -14,10 +14,12 @@ class Game:
         pg.init()
 
         # specify the directories for asset loading
+        # TODO create a Loader scene
         base_dir = path.dirname(__file__)
         self.assets_folder = path.join(base_dir, "..", "assets")
 
         # handle config file
+        # the example file (readonly) contents get copied to the real settings file, which will be modified
         self.config = Config(path.join(base_dir, "..", "settings.toml"),
                              path.join(base_dir, "..", "settings.example.toml"))
 
@@ -37,52 +39,21 @@ class Game:
             )
         self.game_screen_rect = self.game_screen.get_rect()
 
-        bg_image = pg.image.load(path.join(self.assets_folder, "tilesetOpenGameBackground.png")).convert()
-        
-        # Calculate horizon position (must match Mode7.update())
-        horizon_y = int(self.game_screen.get_height() * self.config["Visuals.horizon"])
+        self.assets = {
+            "sprites": {},
+            "spritesheets": {},
+            "backgrounds": {},
+            "fonts": {},
+            # TODO music and sfx
+        }  # gets populated by the AssetLoader scene
+        # courses (tmx data) get loaded individually before each race
 
-        img = pg.transform.smoothscale(bg_image, (int(bg_image.get_width() * self.config["Visuals.sky_image_scale"]), int(bg_image.get_height() * self.config["Visuals.sky_image_scale"])))
-        self.background = img.subsurface((0, img.get_height() - horizon_y,
-                                        img.get_width(), horizon_y)).copy()
-        # px per radian so the sky moves at the same rate as the ground (90 deg FOV)
-        self.sky_speed = self.game_screen.get_width() / (pi / 2)
+        # TODO make background scenery course-specific (via TMX data)
 
-        # parallax maountains
-        mountains_scale = self.config["Visuals.mountain_image_scale"]
-        mountains_image = pg.image.load(path.join(self.assets_folder, "mountains.png")).convert_alpha()
-        self.mountains = pg.transform.smoothscale(
-            mountains_image,
-            (int(mountains_image.get_width() * mountains_scale),
-             int(mountains_image.get_height() * mountains_scale)))
-        self.mountains_y = horizon_y - self.mountains.get_height()
+        self.all_sprites = pg.sprite.Group()  # TODO rename?
+        self.billboards = pg.sprite.Group()  # sprites that are drawn relative to the Mode7 map and scaled up/down relative to the camera distance
 
-        self.all_sprites = pg.sprite.Group()
-        self.billboards = pg.sprite.Group()
-        self.running = True
-        
-        # kart sheets: 12 frames (30x32), behind -> front, turned right
-        self.kart_names = ["kart1", "kart2", "kart3", "kart4"]
-        self.kart_images = {}
-        self.kart_images_flipped = {}  # mirrored frames for karts turned left
-        for kart_name in self.kart_names:
-            strip = pg.image.load(
-                path.join(self.assets_folder, f"{kart_name}.png")).convert_alpha()
-            frames = [strip.subsurface((i * 30, 0, 30, 32)) for i in range(12)]
-            self.kart_images[kart_name] = frames
-            self.kart_images_flipped[kart_name] = [
-                pg.transform.flip(frame, True, False) for frame in frames]
-        
-        self.cloud_image = pg.image.load(
-                path.join(self.assets_folder, "cloud.png")).convert_alpha()
-        self.dirt_image = pg.image.load(
-                path.join(self.assets_folder, "dirt.png")).convert_alpha()
-        self.traffic_light_images = pg.image.load(
-                path.join(self.assets_folder, "lights.png")).convert_alpha()
-        self.star_image = pg.image.load(
-                path.join(self.assets_folder, "star.png")).convert_alpha()
-
-        self.font = pg.font.Font(path.join(self.assets_folder, "PressStart2P.ttf"), 8)  # menu text
+        self.font = pg.font.Font(path.join(self.assets_folder, "fonts", "PressStart2P.ttf"), 8)  # menu text
 
         # race objects, set by the Race scene (sprites access them through game)
         self.player = None
@@ -94,7 +65,10 @@ class Game:
         # scene stack: top scene gets events/updates,
         # transparent scenes also draw the scene below them
         self.scene_stack = []
-        self.push_scene("TitleScreen")
+        self.push_scene("AssetLoader")
+
+        # game loop active flag
+        self.running = True
 
     # --- scene management ---
 

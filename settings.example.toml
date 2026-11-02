@@ -5,6 +5,19 @@ game_screen_w = 200
 game_screen_h = 150
 fps = 60
 
+[Assets]
+num_images = {
+    kart1 = 12,
+    kart2 = 12,
+    kart3 = 12,
+    kart4 = 12,
+    lights = 5
+}
+bg_scale_factors = {
+    cloudy_sky = 0.2,
+    mountains = 0.5
+}
+
 [Visuals]
 horizon = 0.2
 sky_image_scale = 0.2

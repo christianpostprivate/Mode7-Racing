@@ -1,2 +1,4 @@
-- replace magic numbers with game.config values
 - framerate-independent game speed
+
+refactor:
+- replace os.path and glob with pathlib

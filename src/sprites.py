@@ -31,6 +31,7 @@ class Direction(Enum):
 
 class Billboard(pg.sprite.Sprite):
     # static world sprite from a Tiled object, image = assets/<name>.png
+    # scaled images get cached to avoid constant scaling operations
     base_images = {}  # name -> surface
     scaled_images = {}  # (name, width) -> surface
 
@@ -45,8 +46,7 @@ class Billboard(pg.sprite.Sprite):
         self.world_width = tiled_object.width  # size on the map, set in Tiled
 
         if self.name not in Billboard.base_images:
-            Billboard.base_images[self.name] = pg.image.load(
-                path.join(game.assets_folder, f"{self.name}.png")).convert_alpha()
+            Billboard.base_images[self.name] = game.assets["sprites"].get(self.name)
         self.base_image = Billboard.base_images[self.name]
         self.image = self.base_image
         self.rect = self.image.get_rect()
@@ -117,8 +117,8 @@ class Kart(Billboard):
     # billboard using a kart sheet, needs angle, steer_yaw and map_pos
 
     def set_sheet(self, kart_name):
-        self.images = self.game.kart_images[kart_name]
-        self.images_flipped = self.game.kart_images_flipped[kart_name]
+        self.images = self.game.assets["spritesheets"][kart_name]
+        self.images_flipped = self.game.assets["spritesheets"][f"{kart_name}_flipped"]
         self.base_image = self.images[0]
 
 
@@ -357,7 +357,7 @@ class Player(Kart):
                     Particle(
                         self.game, 
                         self.rect.bottomright, 
-                        images=[self.game.cloud_image],
+                        images=[self.game.assets["sprites"]["cloud"]],
                         colors=[pg.Color('white')],
                         vel=vec(1, 0),
                         random_angle=20,
@@ -367,7 +367,7 @@ class Player(Kart):
                     Particle(
                         self.game, 
                         self.rect.bottomleft, 
-                        images=[self.game.cloud_image],
+                        images=[self.game.assets["sprites"]["cloud"]],
                         colors=[pg.Color('white')],
                         vel=vec(-1, 0),
                         random_angle=20,
@@ -461,7 +461,7 @@ class Player(Kart):
                         p = Particle(
                             self.game, 
                             self.rect.midbottom, 
-                            images=[self.game.cloud_image],
+                            images=[self.game.assets["sprites"]["cloud"]],
                             colors=[pg.Color('white')],
                             vel=v,
                             random_angle=30,
@@ -473,7 +473,7 @@ class Player(Kart):
                         p = Particle(
                             self.game, 
                             self.rect.midbottom, 
-                            images=[self.game.cloud_image],
+                            images=[self.game.assets["sprites"]["cloud"]],
                             colors=[pg.Color('white')],
                             vel=v, 
                             random_angle=30,
@@ -496,7 +496,7 @@ class Player(Kart):
                     Particle(
                         self.game, 
                         self.rect.bottomright, 
-                        images=[self.game.dirt_image],
+                        images=[self.game.assets["sprites"]["dirt"]],
                         colors=[pg.Color('white')],
                         vel=vec(1, 0),
                         random_angle=20,
@@ -506,7 +506,7 @@ class Player(Kart):
                     Particle(
                         self.game, 
                         self.rect.bottomleft, 
-                        images=[self.game.dirt_image],
+                        images=[self.game.assets["sprites"]["dirt"]],
                         colors=[pg.Color('white')],
                         vel=vec(-1, 0),
                         random_angle=20,
@@ -534,7 +534,7 @@ class TrafficLight(pg.sprite.Sprite):
     def __init__(self, game, pos):
         super().__init__(game.all_sprites)
         self.game = game
-        self.images = [game.traffic_light_images.subsurface((i * 24, 0, 24, 32)) for i in range(5)]
+        self.images = game.assets["spritesheets"]["lights"]
         self.image = self.images[0]
         self.rect = self.image.get_rect()
         self.rect.center = pos
