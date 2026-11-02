@@ -3,6 +3,8 @@
 ## requirements: 
 * pygame 1.9.6 (pygame.org)
 * pytmx 3.21.7 (https://pypi.org/project/PyTMX/)
+* numpy
+* numba
 
 ## how to play:
 * Execute "game.py" to start the game
